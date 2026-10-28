@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import * as PlantaRepository from "@repositories/PlantaRepository";
-import { validarFiltros, validarId, validarPlanta } from "../validators/PlantaValidator";
+import { validarFiltros, validarId, validarPlanta, validarVenda } from "../validators/PlantaValidator";
 
 const ID_INVALIDO = "O id deve ser um número inteiro positivo.";
 const PLANTA_NAO_ENCONTRADA = "Planta não encontrada.";
@@ -133,5 +133,49 @@ export const deletePlanta = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Erro ao remover planta." });
+  }
+};
+
+export const sellPlanta = async (req: Request, res: Response) => {
+  try {
+    const id = validarId(req.params.id);
+
+    if (id === null) {
+      return res.status(400).json({ message: ID_INVALIDO });
+    }
+
+    const erros = validarVenda(req.body);
+
+    if (erros.length > 0) {
+      return res.status(400).json({ message: "Dados inválidos.", erros: erros });
+    }
+
+    const { quantidade } = req.body;
+
+    const planta = await PlantaRepository.findPlantaById(id);
+
+    if (!planta) {
+      return res.status(404).json({ message: PLANTA_NAO_ENCONTRADA });
+    }
+
+    if (planta.estoque < quantidade) {
+      return res.status(400).json({
+        message: `Estoque insuficiente: pedido de ${quantidade}, mas há apenas ${planta.estoque} em estoque.`,
+      });
+    }
+
+    const vendeu = await PlantaRepository.sellPlanta(id, quantidade);
+
+    // Outra venda pode ter levado os vasos entre a consulta acima e este desconto
+    if (!vendeu) {
+      return res.status(400).json({ message: "Estoque insuficiente: os vasos acabaram de ser vendidos." });
+    }
+
+    const plantaAtualizada = await PlantaRepository.findPlantaById(id);
+
+    return res.status(200).json(plantaAtualizada);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Erro ao registrar venda." });
   }
 };

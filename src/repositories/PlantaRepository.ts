@@ -40,3 +40,14 @@ export const deletePlanta = async (id: number) => {
         where: { id: id },
     });
 };
+
+// Desconta o estoque numa única operação no banco, só se houver vasos suficientes.
+// Assim, duas vendas simultâneas do último vaso não conseguem passar as duas.
+export const sellPlanta = async (id: number, quantidade: number) => {
+    const resultado = await prisma.planta.updateMany({
+        where: { id: id, estoque: { gte: quantidade } },
+        data: { estoque: { decrement: quantidade } },
+    });
+
+    return resultado.count === 1;
+};

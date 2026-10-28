@@ -141,3 +141,26 @@ export const validarFiltros = (query: Record<string, unknown>) => {
 
     return { erros, filtros };
 };
+
+export const validarVenda = (corpo: unknown) => {
+    if (typeof corpo !== "object" || corpo === null || Array.isArray(corpo)) {
+        return ["O corpo da requisição deve ser um objeto JSON."];
+    }
+
+    const dados = corpo as Record<string, unknown>;
+    const erros: string[] = [];
+
+    const naoPermitidos = Object.keys(dados).filter((campo) => campo !== "quantidade");
+
+    if (naoPermitidos.length > 0) {
+        erros.push(`Campo(s) não permitido(s): ${naoPermitidos.join(", ")}. Envie apenas quantidade.`);
+    }
+
+    if (dados.quantidade === undefined) {
+        erros.push("O campo quantidade é obrigatório.");
+    } else if (!ehInteiroEntre(dados.quantidade, 1)) {
+        erros.push(`quantidade deve ser um número inteiro entre 1 e ${MAIOR_INT}.`);
+    }
+
+    return erros;
+};
