@@ -5,6 +5,24 @@ import { execSync } from "node:child_process";
 
 const BASE_URL = "http://localhost:3001";
 
+// O fetch reaproveita conexões (keep-alive). Depois de alguns segundos sem requisições, a API encerra a conexão parada,
+// mas no Windows o Docker Desktop pode não repassar esse aviso, e o próximo fetch falha com "fetch failed".
+// Nesse caso, só um GET é repetido (uma vez): ele não altera dados, então repetir é seguro.
+let getsRepetidos = 0;
+
+const fetchSeguro = async (url, opcoes = {}) => {
+    try {
+        return await fetch(url, opcoes);
+    } catch (erro) {
+        if ((opcoes.method ?? "GET") !== "GET") {
+            throw erro;
+        }
+        getsRepetidos++;
+        console.log(`       (a conexão reaproveitada tinha sido encerrada: GET ${url.replace(BASE_URL, "")} repetido)`);
+        return await fetch(url, opcoes);
+    }
+};
+
 const zerarBanco = () => {
     execSync("yarn -s cross-env DATABASE_HOST=localhost prisma migrate reset --force --skip-generate", { stdio: "ignore" });
 };
@@ -16,7 +34,7 @@ const suite_crud = async () => {
     let total = 0;
 
     const requisitar = async (metodo, rota, corpo) => {
-        const resposta = await fetch(BASE + rota, {
+        const resposta = await fetchSeguro(BASE + rota, {
             method: metodo,
             headers: corpo === undefined ? {} : { "Content-Type": "application/json" },
             body: corpo === undefined ? undefined : JSON.stringify(corpo),
@@ -151,7 +169,7 @@ const suite_filtros = async () => {
     let total = 0;
 
     const requisitar = async (metodo, rota, corpo) => {
-        const resposta = await fetch(BASE + rota, {
+        const resposta = await fetchSeguro(BASE + rota, {
             method: metodo,
             headers: corpo === undefined ? {} : { "Content-Type": "application/json" },
             body: corpo === undefined ? undefined : JSON.stringify(corpo),
@@ -242,7 +260,7 @@ const suite_venda = async () => {
     let total = 0;
 
     const requisitar = async (metodo, rota, corpo) => {
-        const resposta = await fetch(BASE + rota, {
+        const resposta = await fetchSeguro(BASE + rota, {
             method: metodo,
             headers: corpo === undefined ? {} : { "Content-Type": "application/json" },
             body: corpo === undefined ? undefined : JSON.stringify(corpo),
@@ -359,7 +377,7 @@ const suite_valorTotal = async () => {
     let total = 0;
 
     const requisitar = async (metodo, rota, corpo) => {
-        const resposta = await fetch(BASE + rota, {
+        const resposta = await fetchSeguro(BASE + rota, {
             method: metodo,
             headers: corpo === undefined ? {} : { "Content-Type": "application/json" },
             body: corpo === undefined ? undefined : JSON.stringify(corpo),
@@ -453,7 +471,7 @@ const suite_bonus = async () => {
     let total = 0;
 
     const requisitar = async (metodo, rota, corpo) => {
-        const resposta = await fetch(BASE + rota, {
+        const resposta = await fetchSeguro(BASE + rota, {
             method: metodo,
             headers: corpo === undefined ? {} : { "Content-Type": "application/json" },
             body: corpo === undefined ? undefined : JSON.stringify(corpo),
@@ -561,7 +579,7 @@ const suite_json = async () => {
     let total = 0;
 
     const enviarTexto = async (metodo, rota, texto, tipo = "application/json") => {
-        const resposta = await fetch(BASE + rota, { method: metodo, headers: { "Content-Type": tipo }, body: texto });
+        const resposta = await fetchSeguro(BASE + rota, { method: metodo, headers: { "Content-Type": tipo }, body: texto });
         const corpo = await resposta.text();
         return { status: resposta.status, tipo: resposta.headers.get("content-type") || "", corpo };
     };
@@ -579,7 +597,7 @@ const suite_json = async () => {
         console.log(`       ${problema ? "PROBLEMA: " + problema + " | " : ""}${r.corpo.slice(0, 200)}`);
     };
 
-    const inicial = await fetch(BASE + "/plantas").then((r) => r.json());
+    const inicial = await fetchSeguro(BASE + "/plantas").then((r) => r.json());
     if (!Array.isArray(inicial) || inicial.length > 0) {
         console.log("❌ O banco não está vazio: rode o migrate reset e tente de novo.");
         throw new Error("A suíte não pôde continuar (veja a mensagem acima).");
@@ -598,7 +616,7 @@ const suite_json = async () => {
     await teste("corpo grande demais (mais de 100 KB)", "POST", "/plantas", `{"nome":"${"a".repeat(200000)}"}`, 413);
     await teste("corpo sem Content-Type JSON é ignorado → campos ausentes", "POST", "/plantas", valida, 400, "text/plain");
     await teste("a API continua funcionando: cadastro válido", "POST", "/plantas", valida, 201);
-    total++; { const r = await fetch(BASE + "/rota-que-nao-existe"); const c = await r.text(); const ok = r.status === 404 && (r.headers.get("content-type") || "").includes("json"); if (ok) acertos++; console.log(`${ok ? "✅" : "❌"} ${String(total).padStart(2, "0")}. GET /rota-que-nao-existe → ${r.status} | rota inexistente continua 404 em JSON`); console.log(`       ${c}`); }
+    total++; { const r = await fetchSeguro(BASE + "/rota-que-nao-existe"); const c = await r.text(); const ok = r.status === 404 && (r.headers.get("content-type") || "").includes("json"); if (ok) acertos++; console.log(`${ok ? "✅" : "❌"} ${String(total).padStart(2, "0")}. GET /rota-que-nao-existe → ${r.status} | rota inexistente continua 404 em JSON`); console.log(`       ${c}`); }
 
     console.log(`\nResultado da suíte: ${acertos}/${total}`);
         return { acertos, total };
@@ -617,11 +635,11 @@ const suite_seed = async () => {
     registrar(primeira.includes("12 plantas de exemplo cadastradas"), "yarn seed com o banco vazio cadastra 12 plantas", primeira.trim().split("\n").pop());
     const segunda = execSync("yarn -s seed").toString();
     registrar(segunda.includes("o seed não foi executado"), "yarn seed de novo não duplica nada", segunda.trim().split("\n").pop());
-    const plantas = await fetch(`${BASE_URL}/plantas`).then((r) => r.json());
+    const plantas = await fetchSeguro(`${BASE_URL}/plantas`).then((r) => r.json());
     registrar(plantas.length === 12, `GET /plantas → ${plantas.length} plantas`);
-    const valor = await fetch(`${BASE_URL}/plantas/estoque/valor-total`).then((r) => r.json());
+    const valor = await fetchSeguro(`${BASE_URL}/plantas/estoque/valor-total`).then((r) => r.json());
     registrar(valor.valorTotalEmCentavos === 606280 && valor.totalDeVasos === 142, "valor total confere com a conta à mão (606280 centavos, 142 vasos)", JSON.stringify(valor));
-    const esgotadas = await fetch(`${BASE_URL}/plantas/esgotadas`).then((r) => r.json());
+    const esgotadas = await fetchSeguro(`${BASE_URL}/plantas/esgotadas`).then((r) => r.json());
     const nomes = esgotadas.map((p) => p.nome).join(", ");
     registrar(nomes === "Samambaia, Lírio-da-paz", "esgotadas do seed: Samambaia e Lírio-da-paz", nomes);
     console.log(`\nResultado da suíte: ${acertos}/${total}`);
@@ -639,7 +657,7 @@ const suites = [
 ];
 
 try {
-    await fetch(`${BASE_URL}/`);
+    await fetchSeguro(`${BASE_URL}/`);
 } catch {
     console.log("❌ A API não respondeu em http://localhost:3001. Suba o Docker (docker compose up -d) e tente de novo.");
     process.exit(1);
@@ -653,7 +671,8 @@ for (const [titulo, suite] of suites) {
         const { acertos, total } = await suite();
         resumo.push([titulo, acertos, total]);
     } catch (erro) {
-        console.log(`❌ ${erro.message}`);
+        const causa = erro.cause ? ` (causa: ${erro.cause.code ?? erro.cause.message})` : "";
+        console.log(`❌ ${erro.message}${causa}`);
         resumo.push([titulo, 0, 1]);
     }
 }
@@ -665,6 +684,7 @@ for (const [titulo, acertos, total] of resumo) {
 const acertosGerais = resumo.reduce((soma, [, acertos]) => soma + acertos, 0);
 const totalGeral = resumo.reduce((soma, [, , total]) => soma + total, 0);
 console.log(`\nTOTAL: ${acertosGerais}/${totalGeral} testes corretos`);
+console.log(`GETs repetidos por conexão encerrada: ${getsRepetidos}`);
 console.log("(O banco ficou com as 12 plantas do seed, prontas para explorar.)");
 
 // Código de saída 1 avisa ao terminal (ou a uma ferramenta de CI) que algum teste falhou
