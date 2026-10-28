@@ -10,15 +10,34 @@ export const createPlanta = async (data: Prisma.PlantaCreateInput) => {
 type FiltrosPlanta = {
     luminosidade?: Luminosidade;
     petFriendly?: boolean;
+    nome?: string;
+    ordem?: "preco" | "nome";
 };
 
+// Na busca do PostgreSQL, % e _ são curingas: com a barra antes, eles são procurados como texto comum
+const escaparCuringas = (texto: string) => texto.replace(/[\\%_]/g, "\\$&");
+
 export const findAllPlantas = async (filtros: FiltrosPlanta = {}) => {
+    const ordenacao: Prisma.PlantaOrderByWithRelationInput[] = [];
+
+    if (filtros.ordem === "preco") {
+        ordenacao.push({ preco: "asc" });
+    }
+
+    if (filtros.ordem === "nome") {
+        ordenacao.push({ nome: "asc" });
+    }
+
+    // O id é a ordem padrão e desempata plantas com o mesmo preço ou nome
+    ordenacao.push({ id: "asc" });
+
     return await prisma.planta.findMany({
         where: {
             luminosidade: filtros.luminosidade,
             petFriendly: filtros.petFriendly,
+            nome: filtros.nome === undefined ? undefined : { contains: escaparCuringas(filtros.nome), mode: "insensitive" },
         },
-        orderBy: { id: "asc" },
+        orderBy: ordenacao,
     });
 };
 
@@ -55,5 +74,12 @@ export const sellPlanta = async (id: number, quantidade: number) => {
 export const findPrecoEEstoque = async () => {
     return await prisma.planta.findMany({
         select: { preco: true, estoque: true },
+    });
+};
+
+export const findPlantasEsgotadas = async () => {
+    return await prisma.planta.findMany({
+        where: { estoque: 0 },
+        orderBy: { id: "asc" },
     });
 };

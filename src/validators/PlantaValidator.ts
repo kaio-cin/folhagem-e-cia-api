@@ -13,7 +13,9 @@ const CAMPOS_DA_PLANTA = [
     "regaACadaDias",
 ];
 
-const FILTROS_PERMITIDOS = ["luminosidade", "petFriendly"];
+const FILTROS_PERMITIDOS = ["luminosidade", "petFriendly", "nome", "ordem"];
+
+const ORDENS = ["preco", "nome"] as const;
 
 const LUMINOSIDADES = Object.values(Luminosidade);
 
@@ -109,7 +111,12 @@ export const validarPlanta = (corpo: unknown, parcial: boolean) => {
 
 export const validarFiltros = (query: Record<string, unknown>) => {
     const erros: string[] = [];
-    const filtros: { luminosidade?: Luminosidade; petFriendly?: boolean } = {};
+    const filtros: {
+        luminosidade?: Luminosidade;
+        petFriendly?: boolean;
+        nome?: string;
+        ordem?: (typeof ORDENS)[number];
+    } = {};
 
     const naoPermitidos = Object.keys(query).filter((filtro) => !FILTROS_PERMITIDOS.includes(filtro));
 
@@ -136,6 +143,24 @@ export const validarFiltros = (query: Record<string, unknown>) => {
             filtros.petFriendly = false;
         } else {
             erros.push("petFriendly deve ser true ou false.");
+        }
+    }
+
+    if (query.nome !== undefined) {
+        if (typeof query.nome === "string" && query.nome.trim() !== "") {
+            filtros.nome = query.nome.trim();
+        } else {
+            erros.push("nome deve ser um texto não vazio.");
+        }
+    }
+
+    if (query.ordem !== undefined) {
+        const ordem = ORDENS.find((valor) => valor === query.ordem);
+
+        if (ordem === undefined) {
+            erros.push(`ordem deve ser um destes valores: ${ORDENS.join(", ")}.`);
+        } else {
+            filtros.ordem = ordem;
         }
     }
 

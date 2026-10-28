@@ -18,6 +18,7 @@ routes.delete("/users/:id", UserController.deleteUser);
 // Plantas: as rotas fixas vêm antes das que têm :id, senão o Express trata o texto como um id
 routes.post("/plantas", PlantaController.createPlanta);
 routes.get("/plantas", PlantaController.readAllPlantas);
+routes.get("/plantas/esgotadas", PlantaController.readPlantasEsgotadas);
 routes.get("/plantas/estoque/valor-total", PlantaController.readValorTotalEstoque);
 routes.get("/plantas/:id", PlantaController.readPlantaById);
 routes.patch("/plantas/:id", PlantaController.updatePlanta);
