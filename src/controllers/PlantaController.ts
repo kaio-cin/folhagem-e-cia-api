@@ -179,3 +179,18 @@ export const sellPlanta = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Erro ao registrar venda." });
   }
 };
+
+export const readValorTotalEstoque = async (req: Request, res: Response) => {
+  try {
+    const plantas = await PlantaRepository.findPrecoEEstoque();
+
+    // O aggregate do Prisma soma colunas, mas não preco × estoque: a conta é feita aqui
+    const valorTotalEmCentavos = plantas.reduce((soma, planta) => soma + planta.preco * planta.estoque, 0);
+    const totalDeVasos = plantas.reduce((soma, planta) => soma + planta.estoque, 0);
+
+    return res.status(200).json({ valorTotalEmCentavos: valorTotalEmCentavos, totalDeVasos: totalDeVasos });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Erro ao calcular o valor do estoque." });
+  }
+};
