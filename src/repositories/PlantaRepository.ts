@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Luminosidade, Prisma } from "@prisma/client";
 import prisma from "@database";
 
 export const createPlanta = async (data: Prisma.PlantaCreateInput) => {
@@ -7,8 +7,17 @@ export const createPlanta = async (data: Prisma.PlantaCreateInput) => {
     });
 };
 
-export const findAllPlantas = async () => {
+type FiltrosPlanta = {
+    luminosidade?: Luminosidade;
+    petFriendly?: boolean;
+};
+
+export const findAllPlantas = async (filtros: FiltrosPlanta = {}) => {
     return await prisma.planta.findMany({
+        where: {
+            luminosidade: filtros.luminosidade,
+            petFriendly: filtros.petFriendly,
+        },
         orderBy: { id: "asc" },
     });
 };

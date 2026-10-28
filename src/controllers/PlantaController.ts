@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import * as PlantaRepository from "@repositories/PlantaRepository";
-import { validarId, validarPlanta } from "../validators/PlantaValidator";
+import { validarFiltros, validarId, validarPlanta } from "../validators/PlantaValidator";
 
 const ID_INVALIDO = "O id deve ser um número inteiro positivo.";
 const PLANTA_NAO_ENCONTRADA = "Planta não encontrada.";
@@ -35,7 +35,13 @@ export const createPlanta = async (req: Request, res: Response) => {
 
 export const readAllPlantas = async (req: Request, res: Response) => {
   try {
-    const plantas = await PlantaRepository.findAllPlantas();
+    const { erros, filtros } = validarFiltros(req.query);
+
+    if (erros.length > 0) {
+      return res.status(400).json({ message: "Filtros inválidos.", erros: erros });
+    }
+
+    const plantas = await PlantaRepository.findAllPlantas(filtros);
 
     return res.status(200).json(plantas);
   } catch (error) {

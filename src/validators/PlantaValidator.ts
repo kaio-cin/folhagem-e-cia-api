@@ -13,6 +13,8 @@ const CAMPOS_DA_PLANTA = [
     "regaACadaDias",
 ];
 
+const FILTROS_PERMITIDOS = ["luminosidade", "petFriendly"];
+
 const LUMINOSIDADES = Object.values(Luminosidade);
 
 const ehTextoPreenchido = (valor: unknown) => {
@@ -103,4 +105,39 @@ export const validarPlanta = (corpo: unknown, parcial: boolean) => {
     }
 
     return erros;
+};
+
+export const validarFiltros = (query: Record<string, unknown>) => {
+    const erros: string[] = [];
+    const filtros: { luminosidade?: Luminosidade; petFriendly?: boolean } = {};
+
+    const naoPermitidos = Object.keys(query).filter((filtro) => !FILTROS_PERMITIDOS.includes(filtro));
+
+    if (naoPermitidos.length > 0) {
+        erros.push(`Filtro(s) não permitido(s): ${naoPermitidos.join(", ")}. Use: ${FILTROS_PERMITIDOS.join(", ")}.`);
+    }
+
+    // Filtro não enviado fica undefined, e o Prisma ignora condições undefined no where
+    if (query.luminosidade !== undefined) {
+        const luminosidade = LUMINOSIDADES.find((valor) => valor === query.luminosidade);
+
+        if (luminosidade === undefined) {
+            erros.push(`luminosidade deve ser um destes valores: ${LUMINOSIDADES.join(", ")}.`);
+        } else {
+            filtros.luminosidade = luminosidade;
+        }
+    }
+
+    // Na URL tudo chega como texto: "true" e "false" viram booleanos, qualquer outro valor é inválido
+    if (query.petFriendly !== undefined) {
+        if (query.petFriendly === "true") {
+            filtros.petFriendly = true;
+        } else if (query.petFriendly === "false") {
+            filtros.petFriendly = false;
+        } else {
+            erros.push("petFriendly deve ser true ou false.");
+        }
+    }
+
+    return { erros, filtros };
 };
