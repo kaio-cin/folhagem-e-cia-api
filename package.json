@@ -10,6 +10,7 @@
     "migration:deploy": "prisma migrate deploy",
     "studio": "cross-env DATABASE_HOST=localhost prisma studio",
     "seed": "cross-env DATABASE_HOST=localhost ts-node-dev --transpile-only prisma/seed.ts",
+    "test": "node testes/bateria-completa.mjs",
     "typecheck": "tsc --noEmit",
     "build": "swc src --strip-leading-paths --out-dir dist",
     "start": "node dist/server.js",
