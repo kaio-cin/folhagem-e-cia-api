@@ -22,7 +22,6 @@ O enunciado está em [`DESAFIO.md`](DESAFIO.md).
 6. [Decisões e bônus](#6-decisões-e-bônus)
 7. [Testes automatizados](#7-testes-automatizados)
 8. [Estrutura do projeto](#8-estrutura-do-projeto)
-9. [Problemas comuns](#9-problemas-comuns)
 
 ---
 
@@ -556,17 +555,3 @@ testes/
 ```
 
 ---
-
-## 9. Problemas comuns
-
-| Erro | O que fazer |
-|---|---|
-| `failed to connect to the docker API` | O Docker Desktop está fechado. Abra e espere "Engine running" |
-| `port is already allocated` | Troque `SERVER_PORT` ou `DATABASE_PORT` no `.env` e suba de novo |
-| `Can't reach database server` | Os containers não estão de pé: `docker compose up -d` |
-| `'cross-env' não é reconhecido como um comando` | Faltou instalar as dependências na sua máquina: `yarn` |
-| `The container name "/treinamento-crud-db" is already in use` | Outra cópia do projeto está com os containers ligados. Rode `docker compose down` na pasta dela |
-| Depois de mudar o `schema.prisma`: `500` com `Cannot read properties of undefined` no log, ou `Property 'planta' does not exist` no editor | Rode `yarn migration` e `docker compose restart server`: no Windows, o container nem sempre percebe sozinho a mudança no schema. No VS Code: **Ctrl+Shift+P → Restart TS Server** |
-| `400 JSON inválido` no cliente HTTP | Envie o corpo como JSON **puro** em **Body → JSON**, sem aspas em volta e sem vírgula sobrando |
-
-> Use sempre o **Yarn** neste projeto (`yarn`, `yarn <script>`). Comandos do npm, como `npm install`, criam um `package-lock.json` e reescrevem o `yarn.lock`.
